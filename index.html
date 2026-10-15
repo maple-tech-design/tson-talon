@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ЦОН: возьми талон - игра</title>
+<meta name="description" content="Берешь талон и пытаешься дожить до своей очереди в ЦОНе. Бабушка «я только спросить», зависшее табло, ЭЦП на флешке, которая дома.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="tech.code.design">
+<meta property="og:title" content="ЦОН: возьми талон - игра">
+<meta property="og:description" content="Берешь номерок и пытаешься дожить до своей очереди: бабушка «я только спросить», зависшее табло, ЭЦП на флешке, которая дома. Слабо побить рекорд?">
+<meta property="og:image" content="https://maple-tech-design.github.io/tson-talon/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://maple-tech-design.github.io/tson-talon/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ЦОН: возьми талон - игра">
+<meta name="twitter:description" content="Берешь номерок и пытаешься дожить до своей очереди в ЦОНе. Слабо побить рекорд?">
+<meta name="twitter:image" content="https://maple-tech-design.github.io/tson-talon/og-image.png">
+<style>
+  :root{
+    --paper:#f4ecd9;
+    --paper-dark:#e8dcc0;
+    --ink:#2b2620;
+    --ink-soft:#5c554a;
+    --red:#b3402e;
+    --blue:#1f5f8b;
+    --green:#3d7a44;
+    --ticket-edge:#d8c9a3;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0; min-height:100vh;
+    background:var(--paper-dark);
+    background-image:radial-gradient(circle at 20% 10%, rgba(255,255,255,.35), transparent 40%);
+    color:var(--ink);
+    font-family:Georgia, 'Times New Roman', serif;
+    display:flex; justify-content:center; align-items:flex-start;
+    padding:16px 12px 40px;
+  }
+  .wrap{width:100%; max-width:430px;}
+  .screen{display:none;}
+  .screen.on{display:block; animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
+
+  /* ---------- ticket ---------- */
+  .ticket{
+    background:var(--paper);
+    border:2px solid var(--ink);
+    border-radius:10px;
+    padding:18px 18px 14px;
+    position:relative;
+    box-shadow:4px 4px 0 rgba(43,38,32,.18);
+  }
+  .ticket::before, .ticket::after{
+    content:""; position:absolute; top:50%; width:22px; height:22px;
+    background:var(--paper-dark); border:2px solid var(--ink); border-radius:50%;
+    transform:translateY(-50%);
+  }
+  .ticket::before{left:-13px;} .ticket::after{right:-13px;}
+  .perforation{border-top:2px dashed var(--ticket-edge); margin:12px -18px; }
+  .stamp{
+    display:inline-block; border:3px double var(--red); color:var(--red);
+    font-weight:bold; padding:4px 10px; border-radius:4px;
+    transform:rotate(-6deg); letter-spacing:2px; font-size:13px;
+    font-family:'Courier New', monospace; text-transform:uppercase;
+  }
+  h1{font-size:30px; margin:10px 0 4px; line-height:1.15;}
+  h2{font-size:22px; margin:8px 0;}
+  p{line-height:1.55; color:var(--ink);}
+  .mono{font-family:'Courier New', monospace;}
+  .small{font-size:13px; color:var(--ink-soft);}
+
+  /* ---------- queue board ---------- */
+  .board{
+    background:#22201c; color:#ffd76a; border-radius:10px;
+    padding:14px; margin:14px 0; text-align:center;
+    border:2px solid var(--ink);
+    font-family:'Courier New', monospace;
+  }
+  .board .label{font-size:12px; letter-spacing:3px; color:#c9b98a;}
+  .board .num{font-size:52px; font-weight:bold; letter-spacing:6px; line-height:1.1;}
+  .board .row{display:flex; justify-content:space-between; margin-top:8px; font-size:14px;}
+  .board .row b{color:#fff;}
+
+  .nerves-wrap{margin:10px 0 2px;}
+  .nerves-top{display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;}
+  .nerves-bar{height:14px; background:#d9cba6; border:2px solid var(--ink); border-radius:8px; overflow:hidden;}
+  .nerves-fill{height:100%; width:100%; background:linear-gradient(90deg, var(--green), #7bae5c); transition:width .4s ease;}
+  .nerves-fill.low{background:linear-gradient(90deg, var(--red), #d4694f);}
+
+  /* ---------- buttons ---------- */
+  .btn{
+    display:block; width:100%; margin:8px 0; padding:13px 12px;
+    font-size:16px; font-family:Georgia, serif; cursor:pointer;
+    background:var(--paper); color:var(--ink);
+    border:2px solid var(--ink); border-radius:8px;
+    box-shadow:3px 3px 0 rgba(43,38,32,.25);
+    transition:transform .08s ease, box-shadow .08s ease;
+    text-align:left;
+  }
+  .btn:active{transform:translate(2px,2px); box-shadow:1px 1px 0 rgba(43,38,32,.25);}
+  .btn.primary{background:var(--blue); color:#fff; text-align:center; font-size:18px;}
+  .btn.danger{background:var(--red); color:#fff;}
+  .btn:disabled{opacity:.45; cursor:default; transform:none;}
+  .btn .hint{display:block; font-size:12px; opacity:.75; margin-top:2px; font-family:'Courier New', monospace;}
+
+  .event-card{
+    background:#fffdf4; border:2px solid var(--ink); border-radius:8px;
+    padding:12px 14px; margin:12px 0; box-shadow:3px 3px 0 rgba(43,38,32,.15);
+  }
+  .event-card .who{font-size:12px; letter-spacing:2px; color:var(--red); font-family:'Courier New', monospace; margin-bottom:6px;}
+  .log{font-family:'Courier New', monospace; font-size:12.5px; color:var(--ink-soft); margin-top:10px; max-height:130px; overflow-y:auto;}
+  .log div{padding:3px 0; border-bottom:1px dotted var(--ticket-edge);}
+  .delta-up{color:var(--green); font-weight:bold;}
+  .delta-down{color:var(--red); font-weight:bold;}
+
+  .result-emoji{font-size:56px; text-align:center; margin:6px 0;}
+  .stats{display:flex; gap:8px; margin:12px 0;}
+  .stat{flex:1; background:#fffdf4; border:2px solid var(--ink); border-radius:8px; padding:8px 4px; text-align:center;}
+  .stat .v{font-size:20px; font-weight:bold; font-family:'Courier New', monospace;}
+  .stat .k{font-size:11px; color:var(--ink-soft);}
+  .share-box{background:#22201c; color:#ffd76a; border-radius:8px; padding:12px; font-family:'Courier New', monospace; font-size:13px; line-height:1.6; margin:12px 0;}
+  .sig{text-align:center; margin-top:16px; font-size:13px; color:var(--ink-soft);}
+  .sig a{color:var(--blue); font-weight:bold; text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ START ============ -->
+  <div class="screen on" id="screen-start">
+    <div class="ticket">
+      <span class="stamp">ЦОН</span>
+      <h1>Возьми талон</h1>
+      <p>Обычное утро в Центре обслуживания населения. Вы пришли за одной справкой. Казалось бы, что может пойти не так?</p>
+      <div class="perforation"></div>
+      <p class="mono small">ТАЛОН: <b id="start-ticket">Б-148</b><br>
+      УСЛУГА: получение справки<br>
+      ОКНО: любое свободное<br>
+      РЕЖИМ РАБОТЫ: 09:00 - 18:00</p>
+      <div class="perforation"></div>
+      <p class="small"><b>Правила выживания:</b><br>
+      - Дождитесь своего номера на табло<br>
+      - Следите за нервами: упадут до нуля - уйдете ни с чем<br>
+      - Успейте до закрытия в 18:00</p>
+      <button class="btn primary" onclick="startGame()">Взять талон и войти</button>
+      <p class="small mono" id="start-record" style="text-align:center; margin-top:10px;"></p>
+      <div class="sig">сделано <a href="https://www.threads.net/@tech.code.design" target="_blank" rel="noopener">@tech.code.design</a></div>
+    </div>
+  </div>
+
+  <!-- ============ GAME ============ -->
+  <div class="screen" id="screen-game">
+    <div class="ticket">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span class="stamp" style="font-size:11px;">ваш талон</span>
+        <span class="mono" style="font-size:22px; font-weight:bold;" id="g-ticket">Б-148</span>
+      </div>
+      <div class="perforation"></div>
+      <div class="board">
+        <div class="label">СЕЙЧАС ОБСЛУЖИВАЕТСЯ</div>
+        <div class="num" id="g-current">Б-121</div>
+        <div class="row"><span>время: <b id="g-time">09:00</b></span><span>перед вами: <b id="g-ahead">27</b></span></div>
+      </div>
+      <div class="nerves-wrap">
+        <div class="nerves-top"><span>Нервы</span><span class="mono" id="g-nerves-num">100%</span></div>
+        <div class="nerves-bar"><div class="nerves-fill" id="g-nerves"></div></div>
+      </div>
+      <div id="g-event"></div>
+      <div id="g-actions"></div>
+      <div class="perforation"></div>
+      <div class="log" id="g-log"></div>
+    </div>
+  </div>
+
+  <!-- ============ END ============ -->
+  <div class="screen" id="screen-end">
+    <div class="ticket">
+      <div class="result-emoji" id="e-emoji">🎉</div>
+      <h2 id="e-title" style="text-align:center;">Справка получена!</h2>
+      <p id="e-text" style="text-align:center;"></p>
+      <div class="stats">
+        <div class="stat"><div class="v" id="e-time">-</div><div class="k">время в ЦОНе</div></div>
+        <div class="stat"><div class="v" id="e-nerves">-</div><div class="k">нервы уцелели</div></div>
+        <div class="stat"><div class="v" id="e-turns">-</div><div class="k">ходов</div></div>
+      </div>
+      <div class="share-box" id="e-share"></div>
+      <p class="small" id="e-record-note" style="text-align:center; display:none;">Новый рекорд! Ваше лучшее прохождение.</p>
+      <button class="btn" id="btn-share" onclick="shareResult()">Поделиться результатом<span class="hint" id="share-hint">откроется окно шаринга или текст скопируется</span></button>
+      <button class="btn primary" onclick="startGame()">Сыграть еще раз</button>
+      <div class="sig">сделано <a href="https://www.threads.net/@tech.code.design" target="_blank" rel="noopener">@tech.code.design</a> - сайты, которые не заставляют ждать</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+/* TSON: take a ticket - v3. Single file, no external dependencies. */
+
+const LETTERS = ["А","Б","В","Г"];
+let S = null;
+
+function rnd(a, b){ return a + Math.floor(Math.random() * (b - a + 1)); }
+function pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+function fmtTime(mins){
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
+}
+function fmtDur(mins){
+  const h = Math.floor(mins/60), m = mins%60;
+  if(h === 0) return m + " мин";
+  return h + " ч " + String(m).padStart(2,"0") + " мин";
+}
+
+function startGame(){
+  const letter = pick(LETTERS);
+  const mine = rnd(141, 159);
+  const cur = mine - rnd(30, 44);
+  S = {
+    letter, mine, cur,
+    time: 9*60, nerves: 100, turns: 0,
+    lunchStall: 0,        // stalled turns during lunch break
+    blindTurns: 0,        // turns without seeing the board
+    awayRisk: false,      // player at the buffet - number might be called
+    over: false
+  };
+  document.getElementById("start-ticket").textContent = letter + "-" + mine;
+  document.getElementById("g-ticket").textContent = letter + "-" + mine;
+  document.getElementById("g-log").innerHTML = "";
+  log("Вы взяли талон " + letter + "-" + mine + ". Впереди " + (mine - cur) + " человек. Удачи.");
+  log("Табло показывает " + letter + "-" + cur + ". Время 09:00.");
+  show("screen-game");
+  render();
+}
+
+/* ---------- events ---------- */
+const EVENTS = [
+  { w: 12, id:"lunch", text:"Окно №3 ушло на обед. Очередь встала.",
+    effect(){ S.lunchStall = 2; addNerves(-8); return "Следующие 2 хода очередь почти не двигается."; } },
+  { w: 10, id:"techbreak", text:"Технический перерыв 20 минут. Все сидят и смотрят в телефоны.",
+    effect(){ S.time += 20; addNerves(-10); return "Потеряно 20 минут."; } },
+  { w: 10, id:"fast", text:"Заступил опытный оператор. Очередь полетела!",
+    effect(){ S.cur += rnd(4,7); addNerves(6); return "Табло прыгнуло сразу на несколько номеров."; } },
+  { w: 9, id:"candy", text:"Сосед по очереди угостил вас конфетой. Мелочь, а приятно.",
+    effect(){ addNerves(8); return "Настроение чуть поднялось."; } },
+  { w: 9, id:"frozen", text:"Табло зависло на одном номере. Никто не понимает, что происходит.",
+    effect(){ S.blindTurns = 1; addNerves(-6); return "Следующий ход вы не увидите табло."; } },
+  { w: 8, id:"grandma", text:"Бабушка сзади просит пропустить ее: «Я только спросить!»",
+    choices:[
+      { t:"Пропустить", hint:"нервы +10, но она займет время",
+        run(){ addNerves(10); S.time += 10; return "Бабушка спрашивала 10 минут. Зато на душе тепло."; } },
+      { t:"Не пропускать", hint:"нервы -5",
+        run(){ addNerves(-5); return "Бабушка обиженно вздохнула. Вы сделали вид, что не слышите."; } }
+    ] },
+  { w: 8, id:"cutter", text:"Мужчина уверенно идет мимо очереди к окну.",
+    choices:[
+      { t:"Сделать замечание", hint:"риск: 50/50",
+        run(){ if(Math.random() < 0.5){ addNerves(6); return "Он смутился и встал в конец. Очередь одобрительно загудела."; }
+                addNerves(-14); return "Он наорал на вас. Вся очередь сделала вид, что это не ее дело."; } },
+      { t:"Промолчать", hint:"нервы -5",
+        run(){ addNerves(-5); S.cur -= 1; return "Он прошел. Вы кипите молча."; } }
+    ] },
+  { w: 7, id:"kid", text:"Чужой ребенок уже полчаса ноет рядом. Родители в телефонах.",
+    effect(){ addNerves(-9); return "Нервы тают."; } },
+  { w: 7, id:"wifi", text:"Поймали Wi-Fi! Полистали ленту, время пролетело незаметно.",
+    effect(){ addNerves(7); S.time += 5; return "Плюс 5 минут, но каких приятных."; } },
+  { w: 6, id:"recall", text:"Объявили: талоны с номерами старше двух часов аннулируются! Проверьте свой.",
+    choices:[
+      { t:"Проверить талон", hint:"нервы +4",
+        run(){ addNerves(4); return "Ваш талон в порядке. Фух."; } },
+      { t:"Проигнорировать", hint:"риск",
+        run(){ if(Math.random() < 0.35){ S.mine = S.cur + rnd(20,30);
+                document.getElementById("g-ticket").textContent = S.letter + "-" + S.mine;
+                addNerves(-12); return "Ваш талон аннулировали! Выдали новый: " + S.letter + "-" + S.mine + "."; }
+              return "Пронесло. Ваш талон никто не тронул."; } }
+    ] },
+  { w: 7, id:"ecp", text:"Требуют ЭЦП на флешке. Ваша, конечно, лежит дома.",
+    choices:[
+      { t:"Сбегать домой за флешкой", hint:"риск: +60 мин",
+        run(){ S.time += 60; addNerves(-15); return "Слетали домой и обратно за час. ЭЦП приняли с первого раза. Чудо."; } },
+      { t:"Выпустить ЭЦП с телефона", hint:"нервы +5, +15 мин",
+        run(){ S.time += 15; addNerves(5); return "Мучений с приложением - и ЭЦП готова. Вы чувствуете себя хакером."; } }
+    ] },
+  { w: 6, id:"call1414", text:"Дозвонились на 1414! Оператор внимательно выслушал и сказал: «Обратитесь в ЦОН».",
+    effect(){ S.time += 10; addNerves(-7); return "Вы и так в ЦОНе. Спасибо, 1414."; } },
+  { w: 6, id:"acquaintance", text:"Встретили знакомого - он работает в соседнем окне!",
+    choices:[
+      { t:"Попросить помочь", hint:"риск 50/50",
+        run(){ if(Math.random() < 0.5){ S.cur = Math.min(S.cur + 10, S.mine - 1); addNerves(10); return "Знакомый шепнул оператору - вас вызвали на 10 номеров раньше!"; }
+                addNerves(-8); return "Знакомый развел руками: «Система, брат, ничего не могу». Обидно."; } },
+      { t:"Просто поболтать", hint:"нервы +6, +10 мин",
+        run(){ S.time += 10; addNerves(6); return "Поговорили о жизни. Время пролетело незаметно."; } }
+    ] },
+];
+
+function weightedEvent(){
+  const total = EVENTS.reduce((s,e)=>s+e.w,0);
+  let r = Math.random()*total;
+  for(const e of EVENTS){ r -= e.w; if(r <= 0) return e; }
+  return EVENTS[0];
+}
+
+/* ---------- player actions ---------- */
+const ACTIONS = [
+  { id:"wait", t:"Сидеть и ждать", hint:"спокойно, +25-40 мин",
+    run(){
+      advance(rnd(25,40));
+      return "Вы терпеливо ждете.";
+    } },
+  { id:"board", t:"Проверить табло", hint:"нервы +5, +20-30 мин",
+    run(){
+      advance(rnd(20,30)); addNerves(5);
+      return "Табло на месте, очередь движется. Контроль ситуации успокаивает.";
+    } },
+  { id:"buffet", t:"Сходить в буфет", hint:"нервы +12, но номер могут вызвать!",
+    run(){
+      const away = rnd(20,30);
+      S.time += away; S.awayRisk = true; S.turns++;
+      advanceQueue(rnd(3,7));
+      addNerves(12);
+      return "Пирожок и чай. Лучшие " + away + " минут за сегодня.";
+    } },
+  { id:"ask", t:"Попросить пропустить вперед", hint:"риск 40%: -8 номеров",
+    run(){
+      S.time += 10; S.turns++;
+      if(Math.random() < 0.4){
+        S.cur = Math.min(S.cur + 8, S.mine - 1);
+        addNerves(8);
+        return "Добрая женщина пропустила вас! Вы продвинулись на 8 номеров.";
+      }
+      addNerves(-14);
+      return "Вас вежливо (нет) послали в конец очереди. Унизительно.";
+    } },
+];
+
+function advance(mins){
+  S.time += mins;
+  advanceQueue(rnd(2,6));
+  S.turns++;
+}
+
+function advanceQueue(n){
+  if(S.lunchStall > 0){ S.lunchStall--; n = Math.max(1, Math.floor(n/3)); }
+  S.cur += n;
+}
+
+function addNerves(d){
+  S.nerves = Math.max(0, Math.min(100, S.nerves + d));
+  const el = document.getElementById("g-nerves");
+  const num = document.getElementById("g-nerves-num");
+  el.style.width = S.nerves + "%";
+  num.textContent = S.nerves + "%";
+  el.classList.toggle("low", S.nerves <= 30);
+}
+
+function log(msg, cls){
+  const box = document.getElementById("g-log");
+  const div = document.createElement("div");
+  if(cls) div.className = cls;
+  div.textContent = msg;
+  box.prepend(div);
+}
+
+function doAction(id){
+  if(S.over) return;
+  const a = ACTIONS.find(x=>x.id===id);
+  const note = a.run();
+  log("[" + fmtTime(S.time) + "] " + note);
+  afterTurn();
+}
+
+function chooseEvent(choiceIdx, ev){
+  if(S.over) return;
+  const c = ev.choices[choiceIdx];
+  const note = c.run();
+  log("[" + fmtTime(S.time) + "] " + note);
+  S.turns++;
+  S.time += rnd(5,12);
+  advanceQueue(rnd(2,6));
+  afterTurn();
+}
+
+function afterTurn(){
+  if(S.over) return;
+
+  // number was called while the player was at the buffet
+  if(S.awayRisk && S.cur >= S.mine){
+    S.awayRisk = false;
+    S.over = true;
+    return endGame("missed");
+  }
+  S.awayRisk = false;
+
+  // win
+  if(S.cur >= S.mine){ S.over = true; return endGame("win"); }
+  // lost on nerves
+  if(S.nerves <= 0){ S.over = true; return endGame("rage"); }
+  // lost on time
+  if(S.time >= 18*60){ S.over = true; return endGame("closed"); }
+
+  // random event (~60% of turns, at most once per turn)
+  if(Math.random() < 0.6){
+    const ev = weightedEvent();
+    if(ev.choices){ renderEventChoice(ev); }
+    else {
+      const note = ev.effect();
+      log("Событие: " + ev.text + " " + note);
+      if(S.cur >= S.mine){ S.over = true; return endGame("win"); }
+      if(S.nerves <= 0){ S.over = true; return endGame("rage"); }
+      render();
+    }
+  } else {
+    render();
+  }
+}
+
+/* ---------- rendering ---------- */
+function render(){
+  S.pendingEv = null;
+  document.getElementById("g-current").textContent =
+    S.blindTurns > 0 ? "? ? ?" : S.letter + "-" + S.cur;
+  if(S.blindTurns > 0) S.blindTurns--;
+  document.getElementById("g-time").textContent = fmtTime(S.time);
+  document.getElementById("g-ahead").textContent = Math.max(0, S.mine - S.cur);
+  addNerves(0);
+  document.getElementById("g-event").innerHTML = "";
+  const box = document.getElementById("g-actions");
+  box.innerHTML = "";
+  ACTIONS.forEach(a=>{
+    const b = document.createElement("button");
+    b.className = "btn";
+    b.innerHTML = a.t + '<span class="hint">' + a.hint + "</span>";
+    b.onclick = ()=>doAction(a.id);
+    box.appendChild(b);
+  });
+}
+
+function renderEventChoice(ev){
+  render();
+  S.pendingEv = ev;
+  const box = document.getElementById("g-event");
+  const card = document.createElement("div");
+  card.className = "event-card";
+  card.innerHTML = '<div class="who">СОБЫТИЕ</div><p style="margin:0 0 8px;"><b>' + ev.text + "</b></p>";
+  ev.choices.forEach((c,i)=>{
+    const b = document.createElement("button");
+    b.className = "btn";
+    b.innerHTML = c.t + '<span class="hint">' + c.hint + "</span>";
+    b.onclick = ()=>{ chooseEvent(i, ev); };
+    card.appendChild(b);
+  });
+  box.appendChild(card);
+  document.getElementById("g-actions").innerHTML = "";
+}
+
+function show(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("on"));
+  document.getElementById(id).classList.add("on");
+  window.scrollTo(0,0);
+}
+
+function endGame(kind){
+  const spent = S.time - 9*60;
+  document.getElementById("e-time").textContent = fmtDur(Math.max(0,spent));
+  document.getElementById("e-nerves").textContent = S.nerves + "%";
+  document.getElementById("e-turns").textContent = S.turns;
+
+  let emoji, title, text, share;
+  const ticket = S.letter + "-" + S.mine;
+  S.newRecord = false;
+
+  if(kind === "win"){
+    let rank;
+    if(spent <= 150 && S.nerves >= 70) rank = "Легенда ЦОНа";
+    else if(S.nerves >= 50) rank = "Терпеливый гражданин";
+    else if(S.nerves >= 25) rank = "Выживший";
+    else rank = "Герой на грани срыва";
+    emoji = "🎉"; title = "Справка получена!";
+    text = "Оператор улыбнулся, печать шлепнулась, талон " + ticket + " отработан. Ваш ранг: " + rank + ".";
+    share = "Я пережил ЦОН за " + fmtDur(Math.max(0,spent)) + ", нервы уцелели на " + S.nerves + "%. Ранг: " + rank + ". Слабо побить? Игра «ЦОН: возьми талон»";
+    checkRecord(spent, rank);
+  } else if(kind === "missed"){
+    emoji = "😱"; title = "Номер вызвали без вас!";
+    text = "Пока вы ели пирожок в буфете, табло показало " + ticket + ". Талон сгорел. Приходите завтра.";
+    share = "Я профукал свой номер в ЦОНе из-за пирожка. Талон " + ticket + " сгорел. Слабо лучше? Игра «ЦОН: возьми талон»";
+  } else if(kind === "rage"){
+    emoji = "🤬"; title = "Нервы сдали";
+    text = "Вы ушли, хлопнув дверью, в " + fmtTime(S.time) + ". Справка не получена. Завтра - новый день и новый талон.";
+    share = "Мои нервы не выдержали ЦОН, ушел ни с чем в " + fmtTime(S.time) + ". А ты продержишься? Игра «ЦОН: возьми талон»";
+  } else {
+    emoji = "🕕"; title = "ЦОН закрылся";
+    text = "18:00. Операторы гасят свет. Перед вами оставалось " + Math.max(0, S.mine - S.cur) + " человек. Приходите завтра.";
+    share = "Не успел в ЦОНе до закрытия: оставалось " + Math.max(0, S.mine - S.cur) + " человек впереди. Попробуй ты: игра «ЦОН: возьми талон»";
+  }
+
+  document.getElementById("e-emoji").textContent = emoji;
+  document.getElementById("e-title").textContent = title;
+  document.getElementById("e-text").textContent = text;
+  document.getElementById("e-share").textContent = share;
+  document.getElementById("e-record-note").style.display = S.newRecord ? "block" : "none";
+  S.share = share;
+  show("screen-end");
+}
+
+/* ---------- session record (in-memory, per session) ---------- */
+let sessionRecord = null;
+
+function getRecord(){
+  return sessionRecord;
+}
+
+function checkRecord(spent, rank){
+  const rec = getRecord();
+  if(!rec || spent < rec.spent){
+    sessionRecord = {spent: spent, rank: rank, nerves: S.nerves};
+    S.newRecord = true;
+  }
+}
+
+function showRecord(){
+  const rec = getRecord();
+  const el = document.getElementById("start-record");
+  if(rec){
+    el.textContent = "Ваш рекорд: " + rec.rank + " за " + fmtDur(rec.spent);
+  } else {
+    el.textContent = "";
+  }
+}
+
+/* ---------- result sharing ---------- */
+/* SHARE_URL is set after publishing; empty string = share text only */
+const SHARE_URL = "";
+
+function shareResult(){
+  const hint = document.getElementById("share-hint");
+  const text = S.share || "Игра «ЦОН: возьми талон»";
+  const url = SHARE_URL;
+  const full = url ? text + " " + url : text;
+  const flash = (msg)=>{
+    const old = hint.textContent;
+    hint.textContent = msg;
+    setTimeout(()=>{ hint.textContent = old; }, 2500);
+  };
+  const copyFallback = ()=>{
+    const ta = document.createElement("textarea");
+    ta.value = full;
+    ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); flash("Текст скопирован, вставляйте куда хотите"); }
+    catch(e){ flash("Не вышло скопировать, скопируйте текст выше вручную"); }
+    document.body.removeChild(ta);
+  };
+  if(navigator.share){
+    const payload = {title: "ЦОН: возьми талон", text: text};
+    if(url) payload.url = url;
+    navigator.share(payload)
+      .then(()=>flash("Отправлено!"))
+      .catch(()=>{});
+  } else if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(full)
+      .then(()=>flash("Текст скопирован, вставляйте куда хотите"))
+      .catch(copyFallback);
+  } else {
+    copyFallback();
+  }
+}
+
+showRecord();
+</script>
+</body>
+</html>
